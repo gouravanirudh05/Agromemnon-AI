@@ -370,12 +370,28 @@ aws cloudformation deploy \
 The stack's `AuthMode` output reports which mode it ended up in. Deployed in
 `us-east-1`: pool `us-east-1_AAtqwAUR4`, client `3k98p1aqfj4qimsjv871t58k5u`.
 
-**The API is currently deployed open** — it was last deployed without these two
-parameters, so `AuthMode` reads `NONE (open endpoint)`. The pool exists and the frontend
-signs farmers in against it, but API Gateway does not check the token. The cost of that is
-not only an open endpoint: the Lambda derives `actorId` from verified Cognito claims, so
-with auth off no `actorId` is set and every caller is anonymous. Pass both parameters above
-to turn it on.
+**The API is deployed with auth on.** `AuthMode` reads `JWT (Cognito ID token
+required)` and `POST /chat` carries the `Agromemnon-cognito` authorizer.
+
+Do not deploy this stack without both parameters. Leaving them empty does not just
+leave the endpoint open — it silently breaks the farmer's profile, and the failure
+looks like a model problem rather than a config one. The chain is:
+
+1. No parameters → no `JwtAuthorizer` → the route is `AuthorizationType: NONE`.
+2. API Gateway never parses the `Authorization` header. The frontend still sends a
+   valid ID token (`frontend/lib/api.ts`); nothing consumes it.
+3. `event.requestContext.authorizer` is absent, so the Lambda's `claims` is `{}` and it
+   sends no `profile` and no `actorId`.
+4. `FarmerProfile.describe()` (`app/Agromemnon/memory/context.py`) returns `""`, and
+   `guardrails.compose` drops empty blocks — so the orchestrator's system prompt has no
+   "WHO YOU ARE TALKING TO" section at all.
+5. The agent asks the farmer for their state and district, which their signed-in account
+   already knows, and specialists run with no location. `actorId` also falls back to an
+   anonymous `anon-<hash of session>`, which is the wrong scope for AgentCore Memory.
+
+Because the parameters are already set on the live stack, a later `aws cloudformation
+deploy` that omits `--parameter-overrides` keeps the previous values rather than
+clearing them. An explicit empty value is what turns auth back off.
 
 ## 13. Run the web frontend
 
