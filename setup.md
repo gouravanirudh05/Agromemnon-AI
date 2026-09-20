@@ -436,6 +436,79 @@ CLI's own deployment that doesn't.
    are separate from all of this** — redeploy them only if you change a table's own schema,
    not for agent code changes.
 
+## 15. Host the frontend on Amplify
+
+The web app is deployed by AWS Amplify Hosting from this repo. App `Agromemnon-AI`
+(`d1bivb6cjgvi7w`) in `222758971755` / `us-east-1`, branch `main`, live at
+<https://main.d1bivb6cjgvi7w.amplifyapp.com>.
+
+The repo is connected through the AWS Amplify **GitHub App**, not a personal access
+token, so no GitHub credential is stored in AWS and the webhook is managed by the
+installation. Reconnecting the repo is a console action — it has no CLI equivalent.
+
+Build settings live in `amplify.yml` at the repo root. Amplify prefers that file over
+anything saved in the console, so the console's build-settings editor is effectively
+read-only here. It uses the monorepo `applications`/`appRoot` form because the repo
+holds both the backend and the frontend, and it carries the three `NEXT_PUBLIC_*`
+values: they are inlined into the browser bundle at build time and are public anyway,
+so git is the better place for them than the console.
+
+Three variables are set on the app itself rather than in `amplify.yml`, because Amplify
+reads them to decide whether to run the build spec at all:
+
+| Variable | Value | Why |
+|---|---|---|
+| `AMPLIFY_MONOREPO_APP_ROOT` | `frontend` | Must equal `appRoot` in `amplify.yml`, or the build fails with "Invalid monorepo spec, no appRoot matching path found". |
+| `AMPLIFY_DIFF_DEPLOY` | `true` | Skip the build when the commit doesn't touch the frontend. |
+| `AMPLIFY_DIFF_DEPLOY_ROOT` | `frontend` | The path to diff. Redundant with `appRoot` today, but the fallback when Amplify can't resolve an app root is `/src/`, which doesn't exist here. |
+
+With diff-deploy on, a push that only touches `backend/` still opens a build job. The
+job logs `No differences detected` and exits before install, build and deploy, and the
+live site is untouched. It costs a few seconds and reports green.
+
+**The trap: diff-deploy skips the *first* build too.** The diff is taken against the
+last successfully deployed commit, and before the first deploy there is no such commit,
+so Amplify finds no differences and skips. The job goes green in ~45s having never run
+`npm ci`, and the URL serves Amplify's "Your app will appear here" placeholder. A green
+job is not evidence of a deploy — check the duration, or grep the log:
+
+```bash
+aws amplify get-job --app-id d1bivb6cjgvi7w --branch-name main --job-id <n> \
+  --region us-east-1 --query 'job.steps[?stepName==`BUILD`].logUrl' --output text \
+  | xargs curl -s | grep -E 'Skipping Frontend|Compiled successfully'
+```
+
+To force a build past the diff check — needed for the first deploy, and any time you
+change only `amplify.yml` or an app-level variable — turn the flag off, release, turn it
+back on:
+
+```bash
+cd /path/to/repo   # any directory; these are plain API calls
+APP=d1bivb6cjgvi7w
+ENV=AMPLIFY_MONOREPO_APP_ROOT=frontend,AMPLIFY_DIFF_DEPLOY_ROOT=frontend
+
+aws amplify update-app --app-id $APP --region us-east-1 \
+  --environment-variables $ENV,AMPLIFY_DIFF_DEPLOY=false
+aws amplify start-job --app-id $APP --branch-name main --job-type RELEASE --region us-east-1
+# wait for SUCCEED, then restore:
+aws amplify update-app --app-id $APP --region us-east-1 \
+  --environment-variables $ENV,AMPLIFY_DIFF_DEPLOY=true
+```
+
+`update-app --environment-variables` **replaces** the whole map rather than merging into
+it, which is why all three are repeated every time.
+
+Two notes on the app's shape:
+
+- The platform is `WEB_COMPUTE` (SSR), because Amplify detects Next.js. Only
+  `app/layout.tsx` is actually a server component and it just emits metadata — there are
+  no route handlers, no middleware and no server-side fetching. Adding `output: 'export'`
+  to `next.config.mjs` would make this static hosting with no SSR compute to pay for.
+- "Keep cookies in cache key" is off, and should stay off. All client state is in
+  `localStorage` (Cognito tokens, `lib/conversations.ts`, `contexts/language-context.tsx`),
+  which never reaches the server, so varying the CDN cache on cookies would only fragment
+  it. Turn it on only if a server component starts reading `cookies()`.
+
 ## Known gaps in the current deployment
 
 Three things are declared in the repo but not working in AWS. Each degrades rather than
