@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 # Nova Pro rather than Nova Lite: the orchestrator's whole job is choosing which
 # specialists a question belongs to and calling several of them in one turn, and
 # the lighter model picks a single specialist for questions that span two.
-TEXT_MODEL_ID = os.environ.get("TEXT_MODEL_ID", "us.amazon.nova-pro-v1:0")
+TEXT_MODEL_ID = os.environ.get("TEXT_MODEL_ID", "openai.gpt-5.5")
 TEXT_MODEL_REGION = (
     os.environ.get("TEXT_MODEL_REGION") or os.environ.get("AWS_REGION") or "us-east-1"
 )
@@ -122,7 +122,7 @@ def load_model():
 # agent pointed at a model it cannot call is a plant_doctor that never answers.
 # Verified against Bedrock on 2026-09-19 — Nova Pro, Nova Lite, Llama 4 Maverick,
 # Pixtral Large and Qwen3-VL all invoke; the Anthropic family does not.
-VISION_MODEL_ID = os.environ.get("VISION_MODEL_ID", "us.amazon.nova-pro-v1:0")
+VISION_MODEL_ID = os.environ.get("VISION_MODEL_ID", "openai.gpt-5.5")
 VISION_MODEL_REGION = (
     os.environ.get("VISION_MODEL_REGION") or os.environ.get("AWS_REGION") or "us-east-1"
 )
