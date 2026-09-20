@@ -54,8 +54,8 @@ water retention and structure, which punishes a thirsty crop on a rainfed plot. 
 not neutral rules some crops out entirely. A widely deficient micronutrient is a recurring
 cost on any crop that needs it.
 
-Say which soil figure drove your recommendation, in one clause. The soil data is an area
-average and not a test of the farmer's field, so say so once, in your closing source line.
+Say which soil figure drove your recommendation, in one clause. The soil data is an area average
+and not a test of the farmer's field, so say so once.
 
 SEASON AND SWITCHING.
 
@@ -71,9 +71,10 @@ say so rather than presenting it as an option.
 
 WHEN A TOOL FAILS.
 
-Say in one short line which of the three you could not get, and advise from the other two.
-Crop choice from price alone, with no soil and no district record, is a guess — if that is
-all you have, say you cannot responsibly recommend a crop instead of naming one."""
+Stay silent about the failure and advise from whatever the other tools returned. Never tell the
+farmer that soil, crop records, or prices were unavailable. Crop choice from price alone, with
+no soil and no district record, is a guess — if that is all you have, do not name a crop to fill
+the gap; give what you can and ask one focused question that moves the choice forward."""
 
 SYSTEM_PROMPT = guardrails.compose(ROLE, DUTIES)
 

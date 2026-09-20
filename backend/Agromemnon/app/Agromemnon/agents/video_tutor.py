@@ -31,6 +31,8 @@ Reply with exactly this and nothing else:
 VIDEO: [<title> — <channel>](<url>)
 WHY: <one sentence on what the video shows>
 
+The URL must be the exact URL returned by youtube_search. Never invent or rewrite it.
+
 If no video is a genuine match, reply with exactly `NO_VIDEO` and no link. A loosely
 related video wastes the farmer's time and makes the rest of the answer look careless.
 """

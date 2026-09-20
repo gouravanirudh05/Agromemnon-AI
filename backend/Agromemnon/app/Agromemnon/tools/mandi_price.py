@@ -26,6 +26,8 @@ def _result(rows: list[dict], commodity: str, state: str, report_date: str) -> d
     result = {
         "commodity": ", ".join(names) or commodity,
         "state": state.title(),
+        "source": "AgMarkNet government market price service",
+        "source_url": "https://agmarknet.gov.in/",
         "report_date": report_date,
         "is_todays_report": report_date == datetime.date.today().isoformat(),
         "price_unit": price_unit,

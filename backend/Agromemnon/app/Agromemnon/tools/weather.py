@@ -1,3 +1,4 @@
+import datetime
 import json
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -46,6 +47,9 @@ def _format_forecast(data: dict) -> str:
     location = data.get("location", {})
     forecast_days = data.get("forecast", {}).get("forecastday", [])
     result = {
+        "source": "WeatherAPI.com forecast API",
+        "source_url": WEATHER_API_URL,
+        "retrieved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "location": {
             "name": location.get("name"),
             "region": location.get("region"),

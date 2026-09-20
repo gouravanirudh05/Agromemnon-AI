@@ -84,16 +84,28 @@ def rag_scheme_db(query: str, level: str = "", category: str = "") -> dict:
         if not text.strip():
             continue
         entry = {"text": text.strip()}
-        # Metadata carries the scheme's level and category when the ingestion set them,
-        # which lets the adviser say whether a scheme is state or central without guessing.
+        # Preserve provenance for the advice agent. Retrieval metadata is evidence, not
+        # decoration: it lets the final answer cite the exact passage and distinguish an
+        # exact match from a related fallback result without inventing a source.
         metadata = result.get("metadata") or {}
-        for key in ("level", "schemeCategory", "schemeName"):
+        for key in ("level", "schemeCategory", "schemeName", "source", "sourceUrl", "url"):
             if metadata.get(key):
                 entry[key] = metadata[key]
+        location = result.get("location") or {}
+        if location:
+            entry["retrieval_location"] = location
+        if result.get("score") is not None:
+            entry["retrieval_score"] = result["score"]
         passages.append(entry)
 
     if not passages:
         return {"query": query, "passages": [],
                 "message": "No scheme in the database matched this situation."}
 
-    return {"query": query, "passages": passages, "source": "Government scheme database"}
+    return {
+        "query": query,
+        "passages": passages,
+        "source": "Government scheme database",
+        "source_type": "Bedrock Knowledge Base retrieval",
+        "retrieval_region": REGION,
+    }
