@@ -90,11 +90,21 @@ the forecast days are suitable, say that plainly rather than naming one anyway."
 SYSTEM_PROMPT = guardrails.compose(ROLE, DUTIES)
 
 
-def build(model) -> Agent:
+def build(model, farmer: str = "") -> Agent:
+    """Build the specialist.
+
+    `farmer` is the profile block the orchestrator holds — who the farmer is and
+    where they farm. It is appended to the system prompt rather than left for the
+    orchestrator to mention in the tool call, because this agent is a separate
+    agent: it cannot see the orchestrator's prompt or the conversation, only the
+    one string written into the call. Asking a model to remember to copy the
+    district into every call it makes is a coin flip, and the tool signature has
+    no field to put it in.
+    """
     return Agent(
         name=NAME,
         description=DESCRIPTION,
         model=model,
-        system_prompt=SYSTEM_PROMPT,
+        system_prompt=f"{SYSTEM_PROMPT}\n\n{farmer}" if farmer else SYSTEM_PROMPT,
         tools=get_tools(*TOOL_NAMES),
     )

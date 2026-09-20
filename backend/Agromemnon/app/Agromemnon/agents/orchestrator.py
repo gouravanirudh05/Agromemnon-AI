@@ -640,7 +640,21 @@ Government schemes, subsidies, crop prices, agricultural advisories, and eligibi
 * season
 * farmer category
 
-Always pass the farmer's location to advice_agent when available.
+Always pass the farmer's location — state and district — to EVERY specialist you call, not
+just advice_agent.
+
+A specialist is a separate agent. It cannot see the farmer's account, it cannot see this
+system prompt, and it cannot see the conversation. The only thing it knows is what you
+write into the tool call. A specialist you do not tell the location to has nothing to look
+up: it will either ask you for the district or answer about the wrong part of India.
+
+The details under WHO YOU ARE TALKING TO count as given. They come from the farmer's own
+signed-in account, so pass them on exactly as you would a location the farmer had typed a
+moment ago. Do the same with anything they told you earlier in this conversation. Never ask
+a farmer for a detail you are already holding.
+
+This applies to every detail you hold, not only the location: crop, season, irrigation,
+land size, and any soil test figures.
 
 Never invent a location.
 
@@ -723,7 +737,17 @@ def build(context) -> Agent:
     if skill_paths:
         plugins.append(AgentSkills(skills=skill_paths))
 
-    tools = [module.build(model).as_tool() for module in SUB_AGENTS]
+    # The specialists get the farmer's profile in their own system prompt, not just
+    # in the orchestrator's. Agent.as_tool() gives a specialist a single free-text
+    # `input` field, so the only way a district reaches one through the tool call is
+    # if the model writes it into that sentence — and it reliably does not, calling
+    # operations_agent("How to maintain paddy crop") with the district sitting in its
+    # own prompt. Building the profile in makes it independent of that choice.
+    farmer = context.profile.describe()
+    tools = [module.build(model, farmer).as_tool() for module in SUB_AGENTS if module is not video_tutor]
+    # video_tutor takes no profile: it searches for tutorials, and the location is
+    # not part of what it looks up.
+    tools += [video_tutor.build(model).as_tool()]
     tools += [module.build_tool(module.build(model)) for module in PHOTO_AGENTS]
 
     return Agent(
