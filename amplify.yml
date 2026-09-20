@@ -1,0 +1,51 @@
+# AWS Amplify Hosting build spec.
+#
+# This repo is a monorepo (backend/ + frontend/), so the spec uses the
+# `applications` form with an `appRoot`. Amplify only knows to diff `frontend/`
+# — and therefore only rebuilds when the frontend changes — because `appRoot`
+# is set here AND the app's AMPLIFY_MONOREPO_APP_ROOT environment variable has
+# the same value. Changing one without the other makes the build fail with
+# "Invalid monorepo spec, no appRoot matching path found".
+#
+# Commits that touch only backend/ are skipped by the diff check enabled with
+# AMPLIFY_DIFF_DEPLOY=true. Amplify still opens a build job for them, but it
+# exits before install/build/deploy and leaves the live site untouched.
+version: 1
+applications:
+  - appRoot: frontend
+    env:
+      variables:
+        # These three are inlined into the JS bundle at build time (NEXT_PUBLIC_
+        # prefix) and are already public once the site ships — the Cognito IDs
+        # are identifiers, not secrets, and the API URL is visible in devtools.
+        # They live here rather than in the console so a change is reviewable in
+        # git and applies to every branch at once.
+        NEXT_PUBLIC_AGENT_API_URL: https://4j0jww3atb.execute-api.us-east-1.amazonaws.com
+        NEXT_PUBLIC_COGNITO_USER_POOL_ID: us-east-1_AAtqwAUR4
+        NEXT_PUBLIC_COGNITO_CLIENT_ID: 3k98p1aqfj4qimsjv871t58k5u
+        # AMPLIFY_MONOREPO_APP_ROOT and AMPLIFY_DIFF_DEPLOY cannot go here.
+        # Amplify reads them to decide whether to run this file at all, so they
+        # have to be set on the app itself (see setup.md step 15).
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            # ci, not install: package-lock.json is committed, and a lockfile
+            # the build is free to rewrite defeats the point of having one.
+            - npm ci
+        build:
+          commands:
+            - npm run build
+      artifacts:
+        # Relative to appRoot. Next.js on Amplify deploys the whole .next
+        # directory, not a static out/ folder — the platform reads the build
+        # manifests in here to decide what is static and what needs SSR.
+        baseDirectory: .next
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
+          # Next's incremental compiler cache. Without it every build is cold
+          # and recompiles every route.
+          - .next/cache/**/*
